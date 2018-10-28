@@ -4,6 +4,7 @@ import cv2
 from core.config import cfg
 import utils.blob as blob_utils
 import roi_data.rpn
+import roi_data.retinanet
 
 
 def get_minibatch_blob_names(is_training=True):
@@ -15,7 +16,9 @@ def get_minibatch_blob_names(is_training=True):
         # RPN-only or end-to-end Faster R-CNN
         blob_names += roi_data.rpn.get_rpn_blob_names(is_training=is_training)
     elif cfg.RETINANET.RETINANET_ON:
-        raise NotImplementedError
+        blob_names += roi_data.retinanet.get_retinanet_blob_names(
+            is_training=is_training
+        )
     else:
         # Fast R-CNN like models trained on precomputed proposals
         blob_names += roi_data.fast_rcnn.get_fast_rcnn_blob_names(
@@ -37,7 +40,13 @@ def get_minibatch(roidb):
         # RPN-only or end-to-end Faster/Mask R-CNN
         valid = roi_data.rpn.add_rpn_blobs(blobs, im_scales, roidb)
     elif cfg.RETINANET.RETINANET_ON:
-        raise NotImplementedError
+        im_width, im_height = im_blob.shape[3], im_blob.shape[2]
+        # im_width, im_height corresponds to the network input: padded image
+        # (if needed) width and height. We pass it as input and slice the data
+        # accordingly so that we don't need to use SampleAsOp
+        valid = roi_data.retinanet.add_retinanet_blobs(
+            blobs, im_scales, roidb, im_width, im_height
+        )
     else:
         # Fast R-CNN like models trained on precomputed proposals
         valid = roi_data.fast_rcnn.add_fast_rcnn_blobs(blobs, im_scales, roidb)

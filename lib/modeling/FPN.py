@@ -140,7 +140,7 @@ class fpn(nn.Module):
             self.extra_pyramid_modules = nn.ModuleList()
             dim_in = fpn_level_info.dims[0]
             for i in range(HIGHEST_BACKBONE_LVL + 1, max_level + 1):
-                self.extra_pyramid_modules(
+                self.extra_pyramid_modules.append(
                     nn.Conv2d(dim_in, fpn_dim, 3, 2, 1)
                 )
                 dim_in = fpn_dim
@@ -214,7 +214,7 @@ class fpn(nn.Module):
                 })
 
         if hasattr(self, 'extra_pyramid_modules'):
-            for i in len(self.extra_pyramid_modules):
+            for i in range(len(self.extra_pyramid_modules)):
                 p_prefix = 'extra_pyramid_modules.%d' % i
                 d_prefix = 'fpn_%d' % (HIGHEST_BACKBONE_LVL + 1 + i)
                 mapping_to_detectron.update({
@@ -246,9 +246,9 @@ class fpn(nn.Module):
 
         if hasattr(self, 'extra_pyramid_modules'):
             blob_in = conv_body_blobs[-1]
-            fpn_output_blobs.insert(0, self.extra_pyramid_modules(blob_in))
+            fpn_output_blobs.insert(0, self.extra_pyramid_modules[0](blob_in))
             for module in self.extra_pyramid_modules[1:]:
-                fpn_output_blobs.insert(0, module(F.relu(fpn_output_blobs[0], inplace=True)))
+                fpn_output_blobs.insert(0, module(F.relu(fpn_output_blobs[0])))
 
         if self.P2only:
             # use only the finest level
@@ -294,7 +294,7 @@ class topdown_lateral_module(nn.Module):
         lat = self.conv_lateral(lateral_blob)
         # Top-down 2x upsampling
         # td = F.upsample(top_blob, size=lat.size()[2:], mode='bilinear')
-        td = F.upsample(top_blob, scale_factor=2, mode='nearest')
+        td = F.interpolate(top_blob, scale_factor=2, mode='nearest')
         # Sum lateral and top-down
         return lat + td
 

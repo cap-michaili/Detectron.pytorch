@@ -45,6 +45,7 @@ import utils.blob as blob_utils
 import utils.fpn as fpn_utils
 import utils.image as image_utils
 import utils.keypoints as keypoint_utils
+import core.test_retinanet as test_retinanet
 
 
 def im_detect_all(model, im, box_proposals=None, timers=None):
@@ -61,6 +62,13 @@ def im_detect_all(model, im, box_proposals=None, timers=None):
     """
     if timers is None:
         timers = defaultdict(Timer)
+
+    # Handle RetinaNet testing separately for now
+    if cfg.RETINANET.RETINANET_ON:
+        timers['im_detect_bbox'].tic()
+        cls_boxes = test_retinanet.im_detect_bbox(model, im, timers)
+        timers['im_detect_bbox'].toc()
+        return cls_boxes, None, None
 
     timers['im_detect_bbox'].tic()
     if cfg.TEST.BBOX_AUG.ENABLED:

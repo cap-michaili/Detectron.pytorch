@@ -29,6 +29,72 @@
 <tr><th align="left" bgcolor=#f8f8f8>ARl</th><td bgcolor=white> AR for large objects: area > 96<sup>2</sup></sup></td></tr>
 </table></tbody>
 
+## RetinaNet
+### retinanet-R-50-FPN_1x
+
+- Training command:
+
+  ```
+  python tools/train_net_step.py \
+    --dataset coco2017 --cfg configs/baselines/retinanet_R-50-FPN_1x.yaml \
+    --bs 8 --iter_size 1 --use_tfboard
+  ```
+  on four V100 GPUs.
+
+<table><tbody>
+<tr><th colspan="13" bgcolor=#f8f8f8>Box</th></tr>
+<tr>
+<th>source</th>
+<th>AP50:95</th>
+<th>AP50</th>
+<th>AP75</th>
+<th>APs</th>
+<th>APm</th>
+<th>APl</th>
+<th>AR1</th>
+<th>AR10</th>
+<th>AR100</th>
+<th>ARs</th>
+<th>ARm</th>
+<th>ARl</th>
+</tr>
+<tr>
+<th bgcolor=white>PyTorch</th>
+<td align="right" bgcolor=white>35.3</td>
+<td align="right" bgcolor=white>54.6</td>
+<td align="right" bgcolor=white>37.9</td>
+<td align="right" bgcolor=white>19.4</td>
+<td align="right" bgcolor=white>39.1</td>
+<td align="right" bgcolor=white>47.5</td>
+<td align="right" bgcolor=white>30.7</td>
+<td align="right" bgcolor=white>48.9</td>
+<td align="right" bgcolor=white>51.8</td>
+<td align="right" bgcolor=white>32.4</td>
+<td align="right" bgcolor=white>56.3</td>
+<td align="right" bgcolor=white>67.4</td>
+</tr>
+<tr>
+<th bgcolor=white>Detectron</th>
+<td align="right", bgcolor=white>35.7</td>
+<td align="right", bgcolor=white>54.7</td>
+<td align="right", bgcolor=white>38.5</td>
+<td align="right", bgcolor=white>19.5</td>
+<td align="right", bgcolor=white>39.9</td>
+<td align="right", bgcolor=white>47.5</td>
+<td align="right", bgcolor=white>30.7</td>
+<td align="right", bgcolor=white>49.1</td>
+<td align="right", bgcolor=white>52.0</td>
+<td align="right", bgcolor=white>32.0</td>
+<td align="right", bgcolor=white>56.9</td>
+<td align="right", bgcolor=white>68.0</td>
+</tr>
+</table></tbody>
+
+- Total loss comparison:
+
+  ![img](demo/loss_retinanet_R-50-FPN_1x.jpg)
+
+
 ## Faster-RCNN
 ### e2e_faster_rcnn-R-50-FPN_1x
 

@@ -24,12 +24,56 @@ def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_we
     abs_in_box_diff = torch.abs(in_box_diff)
     smoothL1_sign = (abs_in_box_diff < beta).detach().float()
     in_loss_box = smoothL1_sign * 0.5 * torch.pow(in_box_diff, 2) / beta + \
-                  (1 - smoothL1_sign) * (abs_in_box_diff - (0.5 * beta))
+        (1 - smoothL1_sign) * (abs_in_box_diff - (0.5 * beta))
     out_loss_box = bbox_outside_weights * in_loss_box
     loss_box = out_loss_box
     N = loss_box.size(0)  # batch size
     loss_box = loss_box.view(-1).sum(0) / N
     return loss_box
+
+
+def select_smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, num_fg, beta=1.0):
+    bbox_pred = bbox_pred.reshape\
+        ((bbox_pred.shape[0], bbox_targets.shape[1], 4, bbox_pred.shape[2], bbox_pred.shape[3]))
+    box_diff = bbox_pred - bbox_targets
+    in_box_diff = bbox_inside_weights * box_diff
+    abs_in_box_diff = torch.abs(in_box_diff)
+    smoothL1_sign = (abs_in_box_diff < beta).detach().float()
+    loss_box = smoothL1_sign * 0.5 * torch.pow(in_box_diff, 2) / beta + \
+        (1 - smoothL1_sign) * (abs_in_box_diff - (0.5 * beta))
+    loss_box = loss_box.view(-1).sum(0) / num_fg.sum()
+    return loss_box
+
+
+def sigmoid_focal_loss(cls_preds, cls_targets, num_classes, num_fg, alpha=0.25, gamma=2):
+    masked_cls_preds = cls_preds.reshape((
+        cls_preds.size(0), cls_targets.size(1), num_classes - 1,
+        cls_preds.size(2), cls_preds.size(3))).permute((0, 1, 3, 4, 2)).contiguous().\
+        view(-1, num_classes-1)
+    masked_cls_targets = cls_targets.view(-1)
+
+    weights = (masked_cls_targets >= 0).float()
+    weights = weights.unsqueeze(1)
+
+    t = masked_cls_preds.data.new(
+        masked_cls_preds.size(0), num_classes).fill_(0)
+    ids = masked_cls_targets.view(-1, 1) % (num_classes)
+    t.scatter_(1, ids.long(), 1.)
+    t = t[:, 1:]
+
+    p = masked_cls_preds.sigmoid()
+    # w = alpha if t > 0 else 1-alpha
+    alpha_factor = alpha * t + (1 - alpha) * (1 - t)
+    # pt = p if t > 0 else 1-p
+    focal_weight = p * t + (1 - p) * (1 - t)
+    focal_weight = alpha_factor * (1 - focal_weight).pow(gamma)
+
+    cls_loss = focal_weight * \
+        F.binary_cross_entropy_with_logits(
+            masked_cls_preds, t, weight=weights, reduction='none')
+    cls_loss = cls_loss.sum() / num_fg.sum()
+
+    return cls_loss
 
 
 def clip_gradient(model, clip_norm):
@@ -62,7 +106,9 @@ def decay_learning_rate(optimizer, cur_lr, decay_rate):
         if cfg.SOLVER.TYPE in ['SGD']:
             if cfg.SOLVER.SCALE_MOMENTUM and cur_lr > 1e-7 and \
                     ratio > cfg.SOLVER.SCALE_MOMENTUM_THRESHOLD:
-                _CorrectMomentum(optimizer, param_group['params'], new_lr / cur_lr)
+                _CorrectMomentum(
+                    optimizer, param_group['params'], new_lr / cur_lr)
+
 
 def update_learning_rate(optimizer, cur_lr, new_lr):
     """Update learning rate"""
@@ -119,15 +165,16 @@ def affine_grid_gen(rois, input_size, grid_size):
     width = input_size[1]
 
     zero = Variable(rois.data.new(rois.size(0), 1).zero_())
-    theta = torch.cat([\
-      (x2 - x1) / (width - 1),
-      zero,
-      (x1 + x2 - width + 1) / (width - 1),
-      zero,
-      (y2 - y1) / (height - 1),
-      (y1 + y2 - height + 1) / (height - 1)], 1).view(-1, 2, 3)
+    theta = torch.cat([
+        (x2 - x1) / (width - 1),
+        zero,
+        (x1 + x2 - width + 1) / (width - 1),
+        zero,
+        (y2 - y1) / (height - 1),
+        (y1 + y2 - height + 1) / (height - 1)], 1).view(-1, 2, 3)
 
-    grid = F.affine_grid(theta, torch.Size((rois.size(0), 1, grid_size, grid_size)))
+    grid = F.affine_grid(theta, torch.Size(
+        (rois.size(0), 1, grid_size, grid_size)))
 
     return grid
 
@@ -139,7 +186,8 @@ def save_ckpt(output_dir, args, model, optimizer):
     ckpt_dir = os.path.join(output_dir, 'ckpt')
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
-    save_name = os.path.join(ckpt_dir, 'model_{}_{}.pth'.format(args.epoch, args.step))
+    save_name = os.path.join(
+        ckpt_dir, 'model_{}_{}.pth'.format(args.epoch, args.step))
     if isinstance(model, mynn.DataParallel):
         model = model.module
     # TODO: (maybe) Do not save redundant shared params
